@@ -1,4 +1,4 @@
-The Code will create 2 json files files, these files will be state.json and price_data.json.
+The Code will create 2 json files, these files will be state.json and price_data.json.
 
 the state.json will be holding the trend data for the hgih/low trend values and the file will also contain the values for prediction
 
