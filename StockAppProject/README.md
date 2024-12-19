@@ -1,6 +1,6 @@
 The Code will create 2 json files, these files will be state.json and price_data.json.
 
-the state.json will be holding the trend data for the hgih/low trend values and the file will also contain the values for prediction
+the state.json will be holding the trend data for the high/low trend values and the file will also contain the values for prediction
 
 The price_data.json holds every updated value during the runtime of the application and cleans it every 20 minutes to avoid bad predictions
 
