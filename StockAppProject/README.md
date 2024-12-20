@@ -8,3 +8,6 @@ The code essentially using the price_data.json to get the values of highs and lo
 to predict the next price over the next 1 minute which updates every 20 seconds 
 
 the state.json essentially holds the state of the vlaues for the tkinter application for high, low, etc
+
+#Update: Moved PriceMonitor into seperate file for better optimizaing files 
+as well as created the utils folder which pricemonitor is in and utility.py now holds the code for the JSON script
