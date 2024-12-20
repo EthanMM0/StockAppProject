@@ -10,21 +10,10 @@ import threading
 import time
 import json
 import os
+from utils.utility import Utility
+from utils.PriceMonitor import PriceMonitor
 
 # initializing pre stockapp
-
-def load_data_from_json(file):
-    """Load data with timestamps from a JSON file."""
-    try:
-        with open(file, "r") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return []
-    
-def save_data_to_json(file, data):
-    """Save data to a JSON file."""
-    with open(file, "w") as f:
-        json.dump(data, f)
         
 
 
@@ -98,7 +87,7 @@ class StockApp:
             "prediction_data": self.prediction_data  # Save prediction data
         }
         try:
-            with open("state.json", "w") as f:
+            with open("state.json", "w") as f: # change state.json to folder you want it to be in
                 json.dump(state, f)
             print("State saved successfully.")
         except Exception as e:
@@ -246,7 +235,7 @@ class StockApp:
     def update_predictions(self):
         """Predicts the next price and updates the prediction window."""
         # Load data from JSON file
-        saved_data = load_data_from_json("price_data.json")
+        saved_data = Utility.load_data_from_json("price_data.json") # change price_data.json to folder you want it to be in EX: ./folder/folder/price_data.json
         if saved_data:
             # Filter out insignificant price movements
             filtered_data = self.filter_significant_price_movements(saved_data)
@@ -298,7 +287,7 @@ class StockApp:
         """Continuously predict the next price and update every 20 seconds."""
         while self.running:
             # Load data from JSON file
-            saved_data = load_data_from_json("price_data.json")
+            saved_data = Utility.load_data_from_json("price_data.json")
             if saved_data:
                 # Filter out insignificant price movements
                 filtered_data = self.filter_significant_price_movements(saved_data)
@@ -415,7 +404,7 @@ class StockApp:
         
     def initialize_from_saved_data(self):
         """Initialize high/low and prediction values using saved data."""
-        saved_data = load_data_from_json("price_data.json")
+        saved_data = Utility.load_data_from_json("price_data.json")
         if saved_data:
             # Recalculate prev_high and prev_low
             prices = [entry["price"] for entry in saved_data]
@@ -479,7 +468,7 @@ class StockApp:
                     all_data = []
 
                 all_data.append(price_data)
-                save_data_to_json("price_data.json", all_data)
+                Utility.save_data_to_json("price_data.json", all_data)
 
                 # Update GUI
                 self.current_price_var.set(f"Current Price: ${latest_price:.2f}")
@@ -658,76 +647,6 @@ class StockApp:
             text="Apply", 
             command=lambda: print(f"Threshold set to: {self.threshold_var.get()}")
         ).pack(pady=10)
-
-
-
-class PriceMonitor:
-    """ Threshold for calculating Supply/Demand | Increase/Decrease of $0.30 within 10 seconds"""
-    def __init__(self, threshold=0.30, time_window=10): 
-        self.threshold = threshold
-        self.time_window = time_window
-        self.prices = []
-        self.current_high = float('-inf')
-        self.current_low = float('inf')
-        self.prev_high = None
-        self.prev_low = None
-
-    def record_price(self, price):
-        """ Record the latest price """
-        self.prices.append(price)
-        if len(self.prices) > self.time_window:
-            self.prices.pop(0)  # Maintain the time window by popping the oldest price
-
-        # Update high/low tracking
-        self.update_price(price)
-
-    def check_zone(self):
-        """ Check if we are in a supply or demand zone based on recorded prices """
-        if len(self.prices) < 2:
-            return "None"
-
-        # Load the price data from JSON to evaluate zones
-        saved_data = load_data_from_json("price_data.json")
-        if saved_data:
-            self.prices = [entry["price"] for entry in saved_data]  # Update prices from JSON file
-
-        min_price = min(self.prices)
-        max_price = max(self.prices)
-
-        if max_price - min_price >= self.threshold:
-            return "Supply Zone | Sell"
-        elif min_price - max_price <= -self.threshold:
-            return "Demand Zone | Buy"
-        else:
-            return "Neutral Zone | Slow"
-
-    def clear_prices(self):
-        """ Clear recorded prices """
-        self.prices.clear()
-        self.current_high = float('-inf')
-        self.current_low = float('inf')
-        self.prev_high = None
-        self.prev_low = None
-
-    def update_price(self, new_price):
-        # Update current high/low
-        if new_price > self.current_high:
-            self.current_high = new_price
-        if new_price < self.current_low:
-            self.current_low = new_price
-
-        # Update previous high/low values after each update cycle
-        self.prev_high = self.current_high
-        self.prev_low = self.current_low
-
-    def get_current_values(self):
-        return {
-            'current_high': self.current_high,
-            'current_low': self.current_low,
-            'prev_high': self.prev_high,
-            'prev_low': self.prev_low
-        }
-    
 
 
 # Run the application
