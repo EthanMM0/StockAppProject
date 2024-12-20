@@ -8,7 +8,8 @@ matplotlib.use('TkAgg')
 import yfinance as yf
 import threading
 import time
-import json 
+import json
+import os
 
 # initializing pre stockapp
 
@@ -83,6 +84,8 @@ class StockApp:
         self.prediction_data = []
         self.latest_price = None
         self.price_movement_threshold = 0.05  # Defines a threshold for significant price movement (in dollars)
+        
+        self.threshold_var = tk.DoubleVar(value=0.30)  # Default threshold value
         
         
         
@@ -179,6 +182,7 @@ class StockApp:
 
 
     def create_gui(self):
+        """Create the GUI for the stock tracker."""
         # Search bar
         search_frame = ttk.Frame(self.root)
         search_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -187,26 +191,31 @@ class StockApp:
         search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=20)
         search_entry.pack(side=tk.LEFT, padx=5)
 
+        # Buttons for Search and Predictions
         ttk.Button(search_frame, text="Search", command=self.start_tracking).pack(side=tk.LEFT, padx=5)
-        ttk.Button(search_frame, text="Analysts' Predictions", command=self.create_analyst_prediction_window).pack(side=tk.LEFT, padx=5)  # Added button
+        ttk.Button(search_frame, text="Analysts' Predictions", command=self.create_analyst_prediction_window).pack(side=tk.LEFT, padx=5)
+        ttk.Button(search_frame, text="Settings", command=self.open_settings_window).pack(side=tk.LEFT, padx=5)  # New Settings button
 
         # Current Price and Trend Display
-        price_label = ttk.Label(search_frame, textvariable=self.current_price_var, font=("Arial", 12))
+        info_frame = ttk.Frame(self.root)  # New frame for organizing labels
+        info_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        price_label = ttk.Label(info_frame, textvariable=self.current_price_var, font=("Arial", 12))
         price_label.pack(side=tk.LEFT, padx=10)
 
-        high_label = ttk.Label(search_frame, textvariable=self.current_high_var, font=("Arial", 12))
+        high_label = ttk.Label(info_frame, textvariable=self.current_high_var, font=("Arial", 12))
         high_label.pack(side=tk.LEFT, padx=10)
 
-        low_label = ttk.Label(search_frame, textvariable=self.current_low_var, font=("Arial", 12))
+        low_label = ttk.Label(info_frame, textvariable=self.current_low_var, font=("Arial", 12))
         low_label.pack(side=tk.LEFT, padx=10)
 
-        trend_label = ttk.Label(search_frame, textvariable=self.trend_var, font=("Arial", 12))
+        trend_label = ttk.Label(info_frame, textvariable=self.trend_var, font=("Arial", 12))
         trend_label.pack(side=tk.LEFT, padx=10)
 
-        resistance_label = ttk.Label(search_frame, textvariable=self.resistance_var, font=("Arial", 12))
+        resistance_label = ttk.Label(info_frame, textvariable=self.resistance_var, font=("Arial", 12))
         resistance_label.pack(side=tk.LEFT, padx=10)
-        
-        predicted_label = ttk.Label(search_frame, textvariable=self.predicted_price_var, font=("Arial", 12))
+
+        predicted_label = ttk.Label(info_frame, textvariable=self.predicted_price_var, font=("Arial", 12))
         predicted_label.pack(side=tk.LEFT, padx=10)
 
         # Chart Frame
@@ -214,8 +223,12 @@ class StockApp:
         self.chart_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
         # Prediction Button
-        self.prediction_button = ttk.Button(self.root, text="Predict Trend", command=self.predict_trend)
-        self.prediction_button.pack(pady=10)
+        action_frame = ttk.Frame(self.root)  # New frame for action buttons
+        action_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        self.prediction_button = ttk.Button(action_frame, text="Predict Trend", command=self.predict_trend)
+        self.prediction_button.pack(side=tk.LEFT, padx=5)
+
         
     def filter_significant_price_movements(self, data):
         """Filter out insignificant price movements based on a defined threshold."""
@@ -314,8 +327,19 @@ class StockApp:
             time.sleep(20)
             
     def start_tracking(self):
+        """Validate ticker, initialize threads, and manage trading data."""
         ticker = self.search_var.get().upper()
+        if not ticker.isalpha():  # Validate ticker input
+            tk.messagebox.showerror("Error", "Invalid ticker symbol. Please enter a valid one.")
+            return
+
         if ticker:
+            # Delete files when switching tickers
+            if os.path.exists("price_data.json"):
+                os.remove("price_data.json")
+            if os.path.exists("state.json"):
+                os.remove("state.json")
+
             self.ticker = ticker
             if not self.running:
                 self.running = True
@@ -342,6 +366,7 @@ class StockApp:
                 self.trading_window.title("Trading Strategy Info")
                 tk.Label(self.trading_window, text=f"Latest Predicted Price: None", font=("Arial", 12)).pack(pady=5)
                 self.update_trading_info()
+
         
     def update_trading_info(self):
         """Update the trading strategy information in the second window."""
@@ -409,7 +434,7 @@ class StockApp:
             data = self.fetch_data()
             if data is not None and not data.empty:  # Ensure data is valid and not empty
                 self.ax.clear()
-                
+
                 # Get the current time and filter data up to now
                 now = pd.Timestamp.now(tz='UTC')
                 data = data[data.index <= now]  # Filter data to only include up to the current time
@@ -420,11 +445,11 @@ class StockApp:
 
                 # Plot the data
                 self.ax.plot(data.index, data.values, label=f"{self.ticker} Price")
-                self.ax.set_title(f"Real-time Price for {self.ticker}")
                 self.ax.set_xlabel("Time")
                 self.ax.set_ylabel("Price")
+                self.ax.grid(True)  # Add grid for better visualization
 
-                # Formatting x-axis for half-hour intervals, but subtract 5 hours to simulate EST
+                # Formatting x-axis for half-hour intervals
                 self.ax.xaxis.set_major_locator(MinuteLocator(interval=30))
                 self.ax.xaxis.set_major_formatter(DateFormatter("%H:%M"))
                 self.ax.tick_params(axis="x", rotation=45)
@@ -433,6 +458,17 @@ class StockApp:
                 start_time = pd.Timestamp(now.date()) + pd.Timedelta(hours=14, minutes=30)  # 9:30 AM EST = 14:30 UTC
                 end_time = pd.Timestamp(now.date()) + pd.Timedelta(hours=21)  # 4:00 PM EST = 21:00 UTC
                 self.ax.set_xlim(start_time, end_time)
+
+                # Display trend information dynamically (uptrend, downtrend, or consolidation)
+                if self.current_trend == "Uptrend":
+                    self.ax.set_title(f"Real-time Price for {self.ticker} (Uptrend)")
+                elif self.current_trend == "Downtrend":
+                    self.ax.set_title(f"Real-time Price for {self.ticker} (Downtrend)")
+                else:
+                    self.ax.set_title(f"Real-time Price for {self.ticker}")
+
+                self.ax.legend()
+                self.canvas.draw()
 
                 # Save price and timestamp to a JSON file
                 price_data = {"timestamp": str(now), "price": float(latest_price)}
@@ -445,22 +481,9 @@ class StockApp:
                 all_data.append(price_data)
                 save_data_to_json("price_data.json", all_data)
 
-
-                # Display trend information dynamically (uptrend or downtrend)
-                if self.current_trend == "Uptrend":
-                    self.ax.set_title(f"Real-time Price for {self.ticker} (Uptrend)")
-                elif self.current_trend == "Downtrend":
-                    self.ax.set_title(f"Real-time Price for {self.ticker} (Downtrend)")
-                else:
-                    self.ax.set_title(f"Real-time Price for {self.ticker}")
-
-
-                self.ax.legend()
-                self.canvas.draw()
-
                 # Update GUI
                 self.current_price_var.set(f"Current Price: ${latest_price:.2f}")
-                
+
                 # Store the data for trend prediction
                 self.prediction_data.append(latest_price)
                 if len(self.prediction_data) > 50:  # Limit data size for prediction
@@ -479,7 +502,7 @@ class StockApp:
                 print(f"No data available for {self.ticker}. Retrying...")
 
             time.sleep(3)
-        
+
             # Existing logic for handling a drop in price
             if self.last_30_highs is not None:
                 self.update_last_30_highs(self.last_30_highs)  # Add the last high to the list
@@ -489,6 +512,7 @@ class StockApp:
             if self.last_30_lows is not None:
                 self.update_last_30_lows(self.last_30_lows)  # Add the last low to the list
                 self.last_30_lows = None
+
 
 
     def check_resistance(self):
@@ -608,6 +632,33 @@ class StockApp:
 
         except Exception as e:
             tk.Label(analyst_window, text=f"Error fetching analysts' predictions: {e}").pack(anchor="w", padx=10, pady=5)
+            
+    def open_settings_window(self):
+        """Open a settings window with a slider to adjust the threshold."""
+        settings_window = tk.Toplevel(self.root)
+        settings_window.title("Settings")
+        settings_window.geometry("350x350")
+
+        tk.Label(settings_window, text="Threshold", font=("Arial", 14)).pack(pady=10)
+
+        slider = ttk.Scale(
+            settings_window, 
+            from_=0.05, 
+            to=1, 
+            variable=self.threshold_var, 
+            orient=tk.HORIZONTAL, 
+            length=200
+        )
+        slider.pack(pady=10)
+
+        tk.Label(settings_window, textvariable=self.threshold_var, font=("Arial", 12)).pack(pady=10)
+
+        ttk.Button(
+            settings_window, 
+            text="Apply", 
+            command=lambda: print(f"Threshold set to: {self.threshold_var.get()}")
+        ).pack(pady=10)
+
 
 
 class PriceMonitor:
@@ -676,6 +727,7 @@ class PriceMonitor:
             'prev_high': self.prev_high,
             'prev_low': self.prev_low
         }
+    
 
 
 # Run the application
